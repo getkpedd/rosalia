@@ -6,6 +6,7 @@
 
 function netWorkInfiltrationConstructor() {
     window.grid = new function() {
+        // Names of DOM elements.
         this.DOM = {
             selectorDetail: "selectorName",
             selectorDescription: "selectorDescription",
@@ -20,87 +21,39 @@ function netWorkInfiltrationConstructor() {
         this.ctx.lineWidth = "3";
         this.dimensions = {
             // Dimensions of the display area, change in HTML file as well.
-            gridHeight: 600,
-            gridWidth: 600,
+            gridHeight: 400,
+            gridWidth: 400,
             // Number of cells you want on the grid.
             // Note: Currently maps I made are for 10x10 grids, changing the number of cells will require new maps.
             cellNumX: 10,
             cellNumY: 10,
-            cellPadding: 30
+            cellPadding: 20 // Distance between cells.
         };
         this.colors = {
             playerAccess: '#00ff00',
             ICEMain: 'red',
             ICEAlt: '#FF5900',
             ICEDead: '#AD4D4D',
+            ICEHeadMain: 'red',
+            ICEHeadAlt: 'yellow',
             selector: 'white'
         };
         // Sets the dimensions of cells
         this.dimensions.cellWidth = this.dimensions.gridWidth / this.dimensions.cellNumX;
         this.dimensions.cellHeight = this.dimensions.gridHeight / this.dimensions.cellNumY;
-        // Sets the dimensions in the canvas.
+        // Sets the dimensions of the canvas.
         this.ctx.canvas.width = this.dimensions.gridWidth;
         this.ctx.canvas.height = this.dimensions.gridHeight;
+        // Start position of selector.
         this.selector = {
             x: 0,
             y: 0
         };
-        // The grid is made up of cells.
-        this.cells = [[]];
-        this.levelBuilder = {
-            // The game level is made by drawing these 3 arrays.
-            // All the arrays will get merged into the cells array.
 
-            // This determines what items are in what Cell:
-            // The number corresponds to what item will be in that array position.
-            // 0 = blank
-            // 1 = start
-            // 2 = end
-            // 3 = firewall
-            // 4 = ICE
-            // 5 = server
-            items: [
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [4, 4, 0, 0, 0, 0, 0, 0, 0, 4],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [5, 0, 0, 0, 0, 0, 0, 5, 5, 5],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 5, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 2]
-                ],
-            // This determines where connections should appear running through the grid.
-            // two 1s must be touching to draw a line between those rectangles.
-            connections: [
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-                ],
-            // This determines where the player has access to at the start of the game.
-            playerAccess: [
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                ],
-        };
-        // Clones connections map into ICEConnections
-        this.levelBuilder.ICEConnections = this.levelBuilder.connections.map(function(arr) {return arr.slice();});
+        this.cells = [[]];
+
+        this.currentLevel = 0;
+        this.levels = [];
     };
 }
 
@@ -110,7 +63,8 @@ class ICEAI {
         this.isHunting = false;
         this.animation = {
             startEvery: 5,
-            tickCount: 0
+            tickCount: 0,
+            renderHeads: []
         };
     }
 }
@@ -121,6 +75,7 @@ class ICEAITarget {
         this.targetY = y;
         this.path = null;
         this.steps = 0;
+        this.severed = false;
     }
 }
 
@@ -128,16 +83,17 @@ class Cell {
     constructor(x, y){
         this.coords = {x: x, y: y};
         this.dimensions = {};
-        this.access = grid.levelBuilder.playerAccess[y][x];
-        this.connection = grid.levelBuilder.connections[y][x];
+        this.access = grid.levels[grid.currentLevel].playerAccess[y][x];
+        this.connection = grid.levels[grid.currentLevel].connections[y][x];
         this.setDefaultICEStatus();
+        this.isHeadOfICE = false; // Move to setDefaultICEStatus?
     }
 }   
 
 class Switch extends Cell {
     constructor(x, y) {
         super(x, y);
-        this.createSpecificItem({
+        this.createGridItem({
             name: "Switch",
             id: 0,
             description: "There is nothing of import here",
@@ -150,12 +106,12 @@ class Switch extends Cell {
 class EntryNode extends Cell {
     constructor(x, y) {
         super(x, y);
-        this.createSpecificItem({
+        this.createGridItem({
             name: "Entry Node",
             id: 1,
             description: "Start Here",
             costMultiplier: false,
-            fillColor: grid.colors.playerAccess,
+            fillColor: grid.colors.playerAccess
         });
     }
 }
@@ -163,7 +119,7 @@ class EntryNode extends Cell {
 class NodeCore extends Cell {
     constructor(x, y) {
         super(x, y);
-        this.createSpecificItem({
+        this.createGridItem({
             name: "Node Core",
             id: 2,
             description: "Contains large quantities of sensitive information",
@@ -176,7 +132,7 @@ class NodeCore extends Cell {
 class Firewall extends Cell {
     constructor(x, y) {
         super(x, y);
-        this.createSpecificItem({
+        this.createGridItem({
             name: "Firewall",
             id: 3,
             description: "Prevents access",
@@ -189,7 +145,7 @@ class Firewall extends Cell {
 class ICE extends Cell {
     constructor(x, y) {
         super(x, y);
-        this.createSpecificItem({
+        this.createGridItem({
             name: "ICE",
             id: 4,
             description: "Attacks Intruders",
@@ -202,7 +158,7 @@ class ICE extends Cell {
 class Server extends Cell {
     constructor(x, y) {
         super(x, y);
-        this.createSpecificItem({
+        this.createGridItem({
             name: "Server",
             id: 5,
             description: "Contains information",
@@ -212,22 +168,31 @@ class Server extends Cell {
     }
 }
 
+class level {
+    constructor(levelData) {
+        this.items = levelData.items;
+        this.connections = levelData.connections;
+        this.ICEConnections = levelData.connections;
+        this.playerAccess = levelData.playerAccess;
+    }
+}
+
 Cell.prototype.setDefaultICEStatus = function () {
     this.ICE = {
         hasICE: false,
         pathIntact: true,
         animationOffset: (grid.dimensions.cellNumX - this.coords.x) + (grid.dimensions.cellNumY - this.coords.y),
-        connection: grid.levelBuilder.ICEConnections[this.coords.y][this.coords.x]
+        connection: grid.levels[grid.currentLevel].ICEConnections[this.coords.y][this.coords.x]
     };
 };
 
-Cell.prototype.createSpecificItem = function(e) {
+Cell.prototype.createGridItem = function(itemData) {
     // TODO.
-    this.name = e.name;
-    this.id = e.id;
-    this.description = e.description;
-    this.costMultiplier = e.costMultiplier;
-    this.fillColor = e.fillColor;
+    this.name = itemData.name;
+    this.id = itemData.id;
+    this.description = itemData.description;
+    this.costMultiplier = itemData.costMultiplier;
+    this.fillColor = itemData.fillColor;
 };
 
 Cell.prototype.renderCell = function() {
@@ -240,12 +205,14 @@ Cell.prototype.renderCell = function() {
 };
 
 Cell.prototype.renderPlayerAccess = function(x, y) {
+    // Draws cells that the player has access to.
     if (this.access) {
         this.drawCellOutline(grid.colors.playerAccess);
     }
 };
 
 Cell.prototype.renderICE = function() {
+    // Draws cells that contain ICE.
     if (this.ICE.hasICE) {
         if (!this.ICE.pathIntact) {
             // If the path is broken, display the dead ICE color.
@@ -253,13 +220,14 @@ Cell.prototype.renderICE = function() {
         }
         else {
             // Else pick a color based on animation.
-            this.drawCellInternalOutline(this.getICEColorFromTick());
+            this.drawCellInternalOutline(this.getICEAnimationColor());
         }
     }
 };
 
-Cell.prototype.getICEColorFromTick = function() {
+Cell.prototype.getICEAnimationColor = function() {
     // Alternate colors are displayed based on the tick count and how far away the Cell is from the exit point.
+    // This creates a pulsing snake like animation starting at the exit and traveling down the ICE chain.
     const shouldAltColorRender = (grid.ICE.animation.tickCount - this.ICE.steps) % grid.ICE.animation.startEvery === 0;
     return shouldAltColorRender ? grid.colors.ICEAlt : grid.colors.ICEMain;
 };
@@ -274,11 +242,19 @@ Cell.prototype.renderSelector = function() {
 
 Cell.prototype.renderSelectorText = function() {
     // Displays the detailed text of the state of the cell where the selector is.
-    this.setCellNameText();
-    this.setCellDescriptionText();
-    this.setCellCostText();
-    this.setCellAccessText();
-    this.setCellICEText();
+    if (this.connection) {
+        this.setCellNameText();
+        this.setCellDescriptionText();
+        this.setCellCostText();
+        this.setCellAccessText();
+        this.setCellICEText();
+    }
+    // If there is no connection to the cell then it is inaccessible.
+    else {
+        clearSelectorText();
+        this.setCellNameText();
+        this.setCellInaccessableText();
+    }
 };
 
 Cell.prototype.setCellNameText = function() {
@@ -300,32 +276,42 @@ Cell.prototype.setCellCostText = function() {
 
 Cell.prototype.setCellAccessText = function() {
     if (this.access) {
+        // Cell is accessed.
         HTMLEditor(grid.DOM.selectorAccess, "You have access to this.");
         HTMLColorChange(grid.DOM.selectorAccess, "Green");
     }
     else {
+        // Cell is not accessed and is connected.
         HTMLEditor(grid.DOM.selectorAccess, "You do not have access to this.");
         HTMLColorChange(grid.DOM.selectorAccess, "Red");
     }
 };
 
 Cell.prototype.setCellICEText = function() {
-    if (!this.pathIntact) {
+    // Severed ICE.
+    if (!this.ICE.pathIntact && this.ICE.hasICE) {
         HTMLEditor(grid.DOM.selectorICE, "Disconnected ICE is present here.");
         HTMLColorChange(grid.DOM.selectorICE, "Yellow");
     }
+    // Normal ICE.
     else if (this.ICE.hasICE) {
         HTMLEditor(grid.DOM.selectorICE, "ICE is present here.");
         HTMLColorChange(grid.DOM.selectorICE, "Red");
     }
+    // No ICE.
     else {
         HTMLEditor(grid.DOM.selectorICE, "ICE is not present here.");
         HTMLColorChange(grid.DOM.selectorICE, "Green");
     }
 };
 
+Cell.prototype.setCellInaccessableText = function() {
+        HTMLEditor(grid.DOM.selectorAccess, "You cannot gain access to this.");
+        HTMLColorChange(grid.DOM.selectorAccess, "Gray");
+};
+
 Cell.prototype.drawCellFill = function(color) {
-    // Draws a full color square.
+    // Draws a filled square.
     grid.ctx.lineWidth = "4";
     grid.ctx.fillStyle = color || this.fillColor;
 
@@ -353,7 +339,7 @@ Cell.prototype.drawCellOutline = function(color) {
 };
 
 Cell.prototype.drawCellInternalOutline = function(color) {
-    // Draws the outline of a square with some negative padding.
+    // Draws the outline of a square with some negative padding so it looks like an internal border.
     const bonusPad = 3;
     grid.ctx.lineWidth = "3";
     grid.ctx.strokeStyle = color || this.color;
@@ -368,21 +354,30 @@ Cell.prototype.drawCellInternalOutline = function(color) {
 };
 
 Cell.prototype.takeAction = function() {
+    // The player has taken an action on a cell.
     if (canEnableAccessAtSelector() && this.canAffordAccess()) {
         subtractData(this.getCostToAccess());
-        const x = this.coords.x;
-        const y = this.coords.y;
+        //const x = this.coords.x;
+        //const y = this.coords.y;
         this.enableAccessOnCell();
-        // If this is a server.
-        if (this.id === 4) {
+        // If this is a server or ICE, start ICE hunting.
+        if (this.isServer() || this.isICE()) {
             grid.ICE.isHunting = true;
         }
         grid.ICE.takeAction();
     }
 };
 
+Cell.prototype.isICE = function() {
+	return this.id === 4;
+};
+
+Cell.prototype.isServer = function() {
+	return this.id === 5;
+};
+
 Cell.prototype.enableAccessOnCell = function() {
-    // Possible glitch with ICE AI here.
+    // Enables player access, removes ICE and severs ICE connections.
     this.access = true;
     grid.cells[this.coords.y][this.coords.x].ICE.connection = false;
     this.ICE.hasICE = false;
@@ -402,13 +397,16 @@ Cell.prototype.getCostToAccess = function() {
     return this.costMultiplier * itemList[getBestUnlockedItem()].itemData.baseCost;
 };
 
+Cell.prototype.toggleHeadOfICE = function() {
+    this.isHeadOfICE = !this.isHeadOfICE;
+}
+
 function startHackGame() {
     // First time run.
-
+    importLevels(defaultLevels);
     // Converts the easy to read/make binary arrays to easy to process booleans.
-    convertBinaryMapToBooleanMap(grid.levelBuilder.playerAccess);
-    convertBinaryMapToBooleanMap(grid.levelBuilder.connections);
-    convertBinaryMapToBooleanMap(grid.levelBuilder.ICEConnections);
+
+    parseLevels();
 
     createCellMap();
     populateCellMap();
@@ -421,6 +419,19 @@ function startHackGame() {
 
 }
 
+function importLevels(newLevels) {
+	// Must iterate forwards.
+	for (let i = 0, len = newLevels.length; i < len; i++) {
+		grid.levels.push(newLevels[i]);
+	}
+}
+
+function parseLevels() {
+    convertBinaryMapToBooleanMap(grid.levels[grid.currentLevel].playerAccess);
+    convertBinaryMapToBooleanMap(grid.levels[grid.currentLevel].connections);
+    convertBinaryMapToBooleanMap(grid.levels[grid.currentLevel].ICEConnections);
+}
+
 function refreshNetworkInfiltration() {
     // Refreshes the UI without changing the game state.
     clearGrid();
@@ -428,6 +439,8 @@ function refreshNetworkInfiltration() {
     renderCellBase();
     renderCellItems();
     grid.ICE.update();
+    grid.ICE.renderHeads();
+
     //updateICEHunt();
     updateICEAnimation();
 }
@@ -437,36 +450,47 @@ function updateICEAnimation() {
 }
 
 function clearGrid() {
+    // Completely clears the grid area, make it a blank area.
     grid.ctx.clearRect(0, 0, grid.dimensions.gridWidth, grid.dimensions.gridHeight);
+}
+
+function clearSelectorText() {
+    HTMLEditor(grid.DOM.selectorDetail, '');
+    HTMLEditor(grid.DOM.selectorDescription, '');
+    HTMLEditor(grid.DOM.selectorAccess, '');
+    HTMLEditor(grid.DOM.selectorICE, '');
 }
 
 function convertBinaryMapToBooleanMap(grid) {
     // Converts an array of 1s & 0s to an array of trues & falses.
-    for (var y = grid.length - 1; y >= 0; y--) {
-        for (var x = grid[y].length - 1; x >= 0; x--) {
+    for (let y = grid.length - 1; y >= 0; y--) {
+        for (let x = grid[y].length - 1; x >= 0; x--) {
             grid[y][x] = grid[y][x] !== 0 ? true : false;
         }
     }
 }
 
+
 function createDimensionalCoordianates() {
-    // Creates top right corner coords for cells.
+    // Creates coordinates for the top left (right?) of each cell.
     // Coords are based off of dimensions and padding of cells.
-    let cellX = 0;
-    let cellY = 0;
-    for (let y = 1; y < grid.dimensions.gridHeight; y += grid.dimensions.cellHeight) {
-        for (let x = 1; x < grid.dimensions.gridWidth; x += grid.dimensions.cellWidth) {
-            insertCellCoord(x, y, cellX, cellY);
-            cellX++;
+    // They are used for rendering locations.
+
+    let cellPosX = 0;
+    let cellPosY = 0;
+
+    for (let cellDimensionY = 1; cellDimensionY < grid.dimensions.gridHeight; cellDimensionY += grid.dimensions.cellHeight) {
+        for (let cellDimensionX = 1; cellDimensionX < grid.dimensions.gridWidth; cellDimensionX += grid.dimensions.cellWidth) {
+            insertCellCoord(cellDimensionX, cellDimensionY, cellPosX, cellPosY);
+            cellPosX++;
         }
-        cellY++;
-        cellX = 0;
+        cellPosY++;
+        cellPosX = 0;
     }
-    console.log(cellX, cellY);
 }
 
-function insertCellCoord(dimensionX, dimensionY, cellX, cellY) {
-    grid.cells[cellY][cellX].dimensions = {
+function insertCellCoord(dimensionX, dimensionY, cellPosX, cellPosY) {
+    grid.cells[cellPosY][cellPosX].dimensions = {
         x: dimensionX,
         y: dimensionY
     };
@@ -484,8 +508,8 @@ function createCellMap() {
 
 function populateCellMap() {
     // Populates the Cell map with Cell data.
-    for (let y = grid.levelBuilder.items.length - 1; y >= 0; y--) {
-        for (let x = grid.levelBuilder.items[y].length - 1; x >= 0; x--) {
+    for (let y = grid.levels[grid.currentLevel].items.length - 1; y >= 0; y--) {
+        for (let x = grid.levels[grid.currentLevel].items[y].length - 1; x >= 0; x--) {
             createCell(x, y);
         }
     }
@@ -493,13 +517,16 @@ function populateCellMap() {
 
 function createCell(x, y) {
     // Creates an item Cell based on what item is in the level builder items array.
-    const itemID = grid.levelBuilder.items[y][x];
+    const itemID = grid.levels[grid.currentLevel].items[y][x];
     const itemClass = getItemClass(itemID);
     grid.cells[y][x] = new itemClass(x, y);
 }
 
 function getItemClass(id) {
-    return itemTypes = {
+    // Returns a class from an ID.
+    // It is bad that each class contains an ID and this is a separate list.
+    // TODO.
+    itemTypes = {
         0: Switch,
         1: EntryNode,
         2: NodeCore,
@@ -507,6 +534,7 @@ function getItemClass(id) {
         4: ICE,
         5: Server
     }[id];
+    return itemTypes;
 }
 
 function renderLineBetweenCells(startCellX, startCellY, endCellX, endCellY, color) {
@@ -515,8 +543,12 @@ function renderLineBetweenCells(startCellX, startCellY, endCellX, endCellY, colo
     grid.ctx.strokeStyle = color;
 
     // Offset is so the lines only touch the cells, not enter them.
-    const offsetX = startCellX !== endCellX ? ((grid.dimensions.cellWidth / 2) - 2) / 2 : null;
-    const offsetY = startCellY !== endCellY ? ((grid.dimensions.cellHeight / 2) - 2) / 2 : null;
+    // Ternary determines if line is horizontal or vertical.
+    // Horizontal Offset = Width*2^-2.
+    // Vertical Offset = Height*2^-2.
+    const offsetX = startCellX !== endCellX ? grid.dimensions.cellWidth  * Math.pow(2, -2) : null;
+    const offsetY = startCellY !== endCellY ? grid.dimensions.cellHeight * Math.pow(2, -2) : null;
+
 
     const paddingX = (grid.dimensions.cellWidth - grid.dimensions.cellPadding) / 2;
     const paddingY = (grid.dimensions.cellHeight - grid.dimensions.cellPadding) / 2;
@@ -531,10 +563,6 @@ function renderLineBetweenCells(startCellX, startCellY, endCellX, endCellY, colo
     grid.ctx.moveTo(startX, startY);
     grid.ctx.lineTo(endX, endY);
     grid.ctx.stroke();
-}
-
-function isCellBelowOtherCell(firstCellX) {
-
 }
 
 function renderCellBase() {
@@ -688,7 +716,7 @@ function getBestUnlockedItem() {
             return i;
         }
     }
-    return 0;
+    return 0; // Player has not unlocked or bought anything.
 }
 
 function isSelectorOverConnectionCell() {
@@ -731,9 +759,10 @@ function isCellToRightAccessed(x, y) {
 }
 
 ICEAI.prototype.setServersAsTargets = function() {
+	// Loops through cells, setting servers as targets for ICE.
     for (let y = 0; y < grid.cells.length; y++) {
         for (let x = 0; x < grid.cells[y].length; x++) {
-            if (grid.cells[y][x].id === 5) { // The ID for servers is 5
+            if (grid.cells[y][x].isServer()) {
                 this.addTarget(x, y);
             }
         }
@@ -761,6 +790,7 @@ ICEAI.prototype.calculatePath = function() {
 };
 
 ICEAI.prototype.increaseSteps = function() {
+    this.clearHeads(); // The head locations are going to change once a step occurs.
     for (let i = this.targets.length - 1; i >= 0; i--){
         this.targets[i].takeStep();
     }   
@@ -775,17 +805,18 @@ ICEAI.prototype.update = function() {
 };
 
 ICEAITarget.prototype.getPath = function() {
+    // A* algo for finding path that ICE uses.
     const es = new EasyStar.js();
-    es.setIterationsPerCalculation(1000);
-    es.setGrid(grid.levelBuilder.ICEConnections);
-    es.setAcceptableTiles([true]);
+    es.setIterationsPerCalculation(Infinity); // Forces path to be returned during current tick.
+    es.setGrid(grid.levels[grid.currentLevel].ICEConnections);
+    es.setAcceptableTiles([true]); // Cells that are True are accessible by ICE.
 
     es.findPath(9, 9, this.targetX, this.targetY, function(path) {
         if (path === null) {
-            console.log("No possible path for ICE.");
+            throw('Level Error: No possible path for ICE', this);
         }
         else {
-            this.path = path;
+            this.path = path;            
         }
     }.bind(this));
     es.calculate();
@@ -793,6 +824,7 @@ ICEAITarget.prototype.getPath = function() {
 
 ICEAITarget.prototype.takeStep = function() {
     this.steps++;
+    this.setHead();
 };
 
 ICEAITarget.prototype.setPath = function() {
@@ -830,4 +862,40 @@ ICEAITarget.prototype.severPath = function(step) {
         grid.cells[this.path[i].y][this.path[i].x].ICE.pathIntact = false;
     }
     this.path.splice(step);
+    this.severed = true;
 };
+
+ICEAITarget.prototype.setHead = function() {
+    // Sets the location of the front of this ICE chain.
+    // If the chain has been severed at any point then the head will stay dead and not move.
+    if (this.path && !this.severed && this.steps < this.path.length) {
+        let x = this.path[this.steps - 1].x;
+        let y = this.path[this.steps - 1].y;
+        grid.ICE.animation.renderHeads.push({x, y});
+
+    }
+}
+
+ICEAI.prototype.clearHeads = function() {
+    grid.ICE.animation.renderHeads = [];
+}
+
+ICEAI.prototype.renderHeads = function () {
+    // Loop through the heads, displaying them if they are still intact.
+    for (let i = this.animation.renderHeads.length - 1; i >= 0; i--) {
+        let x = this.animation.renderHeads[i].x
+        let y = this.animation.renderHeads[i].y
+        if (grid.cells[y][x].ICE.pathIntact) {
+            grid.cells[y][x].renderHead();
+        }
+    }
+}
+
+Cell.prototype.renderHead = function() {
+    const flashRate = 4;
+    const shouldAltColorRender = (grid.ICE.animation.tickCount) % flashRate === 0;
+    const color = shouldAltColorRender ? grid.colors.ICEHeadAlt : grid.colors.ICEHeadMain;
+    //this.drawCellFill(color);
+    //this.drawCellInternalOutline(grid.colors.ICEHeadAlt);
+    this.drawCellInternalOutline(color);
+}
