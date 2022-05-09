@@ -10,10 +10,10 @@ A thing by Asher.
 /*jshint eqeqeq: true */   
 
 const saveName = 'idlepunkSave 0.11'; // The name used in local storage, change if an update will break using old saves.        
-const tickRate = 10; // The number of ticks per second.
+const tickRate = 1000; // The number of ticks per second.
 let lastTick = new Date().getTime(); // The time that the last tick occurred
 let autoSaveTimer = 0; // Increases every tick so that the game doesn't auto save every tick.
-let dataHacked = 0 * (totalDataHacker / dataHacked); // Data, less what has been spent.
+let dataHacked = 0; // Data, less what has been spent.
 let totalDataHacked = 0; // The total amount of data that has been hacked.
 // Color themes.
 let currentTheme = 0; // The current theme, the index of colorTheme[].
